@@ -48,7 +48,7 @@ public class StartService {
                 vecDE = loadModel(filePathDE);
                 vecES = loadModel(filePathES);
 
-                int port = 8080;
+                int port = 8081;
                 Spark.port(port);
 
                 System.out.println("Starting the service with port :" + port);
