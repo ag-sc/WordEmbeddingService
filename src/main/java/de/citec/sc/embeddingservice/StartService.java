@@ -31,6 +31,7 @@ public class StartService {
     private static final String filePathEN = "embeddingEN.txt";
     private static final String filePathES = "embeddingES.txt";
     private static final String filePathDE = "embeddingDE.txt";
+    private static final String filePathGloveEN = "glove.6B.300d.txt";
     
     private static Word2Vec vecEN = null;
     private static Word2Vec vecDE = null;
@@ -85,7 +86,84 @@ public class StartService {
                     return similarity;
 
                 }, new JsonTransformer());
-            } else if (args[1].equals("train")) {
+                
+                Spark.get("/word2vec", "application/json", (request, response) -> {
+                    //get input from client
+                    String word = request.queryParams("word");
+                    String lang = request.queryParams("lang");
+
+                    try {
+                        word = URLDecoder.decode(word, "UTF-8");
+                    } catch (UnsupportedEncodingException ex) {
+                    }
+                    
+
+                    double[] vec =  new double[0];
+
+                    switch (lang) {
+                        case "EN":
+                            vec = word2vec(word, vecEN);
+                            break;
+                        case "DE":
+                            vec = word2vec(word, vecDE);
+                            break;
+                        case "ES":
+                            vec = word2vec(word, vecES);
+                            break;
+                    }
+
+                    return vec;
+
+                }, new JsonTransformer());
+            } 
+            else if (args[1].equals("gloveApi")) {
+                vecEN = loadModel(filePathGloveEN);
+
+                int port = 8081;
+                Spark.port(port);
+
+                System.out.println("Starting the service with port :" + port);
+
+                Spark.get("/similarity", "application/json", (request, response) -> {
+                    //get input from client
+                    String word1 = request.queryParams("word1");
+                    String word2 = request.queryParams("word2");
+                    String lang = request.queryParams("lang");
+
+                    try {
+                        word1 = URLDecoder.decode(word1, "UTF-8");
+                    } catch (UnsupportedEncodingException ex) {
+                    }
+                    try {
+                        word2 = URLDecoder.decode(word2, "UTF-8");
+                    } catch (UnsupportedEncodingException ex) {
+                    }
+
+                    double similarity = computeSimilarity(word1, word2, vecEN);
+
+                    return similarity;
+
+                }, new JsonTransformer());
+                
+                Spark.get("/word2vec", "application/json", (request, response) -> {
+                    //get input from client
+                    String word = request.queryParams("word");
+                    String lang = request.queryParams("lang");
+
+                    try {
+                        word = URLDecoder.decode(word, "UTF-8");
+                    } catch (UnsupportedEncodingException ex) {
+                    }
+                    
+
+                    double[] vec = word2vec(word, vecEN);
+                    
+                    return vec;
+
+                }, new JsonTransformer());
+            }
+            
+            else if (args[1].equals("train")) {
                 System.out.println("Training word2vec model");
 
                 List<String> languages = new ArrayList<>();
@@ -124,7 +202,7 @@ public class StartService {
         }
         return word2Vec;
     }
-
+    
     private static double computeSimilarity(String word1, String word2, Word2Vec vec) {
         double sim = 0;
 
@@ -178,6 +256,20 @@ public class StartService {
             for (int i = 0; i < summedVec.length; i++) {
                 summedVec[i] += wordVec[i];
             }
+        }
+
+        return summedVec;
+    }
+    
+    private static double[] word2vec(String w, Word2Vec vec) {
+        
+        double[] summedVec = null;
+        
+        if(w.contains(" ")){
+            summedVec = summedVector(w, vec);
+        }
+        else{
+            summedVec = vec.getWordVector(w);
         }
 
         return summedVec;
